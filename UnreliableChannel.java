@@ -20,15 +20,34 @@ public class UnreliableChannel{ //port, probability, minD, maxD
         int loserB = 0;
         int keeperB = 0;
 
+        int loser = 0;
+        int keeper = 0;
+
 
         while(true){
             theSocketII.receive(thePacketII);
+            String str = new String(thePacketII.getData());
+
+
+
+
             Random rnd = new Random();
             if (rnd.nextDouble()<=probs){
+                if (str.charAt(0) == 'A'){
+                    ++loserA;
+                }
+                else{
+                    ++loserB;
+                }
                 continue;
             }
             else{
-
+                if (str.charAt(0) == 'A'){
+                    ++keeperA;
+                }
+                else{
+                    ++keeperB;
+                } 
             }
 
 
@@ -38,6 +57,14 @@ public class UnreliableChannel{ //port, probability, minD, maxD
                 //counters
                 break;
             }
+            /*if (str.charAt(0) == 'A'){
+                loserA = loser;
+                keeperA = keeper;
+            }
+            else{
+                loserB = loser;
+                keeperB = keeper;
+            }*/
         }
 
 
