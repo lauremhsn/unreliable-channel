@@ -15,9 +15,7 @@ public class Client{ //A, B, PORT
         DatagramSocket theSocket = new DatagramSocket();
 
         for (int i = 0; i<1000; ++i){
-            String s = "";
-
-            s += msgSender + " " + msgReceiver + " " + seq;
+            String s = msgSender + " " + msgReceiver + " " + seq;
             seq = 1-seq;
 
             aBuff = s.getBytes();
