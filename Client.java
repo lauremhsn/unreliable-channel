@@ -14,14 +14,22 @@ public class Client{ //A, B, PORT
         DatagramPacket thePacket;
         DatagramSocket theSocket = new DatagramSocket();
 
+        Random rnd = new Random();
+
         for (int i = 0; i<1000; ++i){
-            String s = msgSender + " " + msgReceiver + " " + seq;
+            int msgAdditionSize = rnd.nextInt(5,31); //variable packet lengths
+            String addOn = "";
+            for (int j = 0; j < msgAdditionSize; ++j) {
+                addOn += "h";
+            }
+            String s = msgSender + " " + msgReceiver + " " + seq + " " + addOn;
             seq = 1-seq;
 
             aBuff = s.getBytes();
             thePacket = new DatagramPacket(aBuff, aBuff.length, IP, port);
 
             theSocket.send(thePacket);
+            System.out.println("Sent packet: " + s); // testing
 
             Thread.sleep(500);
         }
