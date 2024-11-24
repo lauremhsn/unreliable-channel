@@ -7,37 +7,43 @@ public class Client{ //A, B, PORT
         String msgReceiver = args[1];
         InetAddress IP = InetAddress.getLocalHost();
         int port = Integer.parseInt(args[2]);
-        byte[] aBuff = null;
 
         int seq = 0;
-
-        DatagramPacket thePacket;
-        DatagramSocket theSocket = new DatagramSocket();
-
         Random rnd = new Random();
 
-        for (int i = 0; i<1000; ++i){
-            int msgAdditionSize = rnd.nextInt(5,31); //variable packet lengths
+        DatagramSocket theSocket = new DatagramSocket();
+
+        sendPackets(msgSender, msgReceiver, seq, port, IP, theSocket, rnd); //A
+
+        sendPackets(msgReceiver, msgSender, seq, port, IP, theSocket, rnd); //B
+
+        
+        String endMess = "END";
+        byte[] endArr = endMess.getBytes();
+        DatagramPacket lastPacket = new DatagramPacket(endArr, endArr.length, IP, port);
+        theSocket.send(lastPacket);
+
+        theSocket.close();
+    }
+
+    private static void sendPackets(String msgSender, String msgReceiver, int seq, int port, InetAddress IP, DatagramSocket theSocket, Random rnd) throws Exception{
+        for (int i = 0; i<30; ++i){
+            int msgAdditionSize = rnd.nextInt(0,31); //variable packet lengths
             String addOn = "";
             for (int j = 0; j < msgAdditionSize; ++j) {
                 addOn += "h";
             }
-            String s = msgSender + " " + msgReceiver + " " + seq + " " + addOn;
+
+            String s = msgSender + " " + msgReceiver + " " + seq + " " + addOn + " | IP Address: " + IP;
             seq = 1-seq;
 
-            aBuff = s.getBytes();
-            thePacket = new DatagramPacket(aBuff, aBuff.length, IP, port);
+            byte[] aBuff = s.getBytes();
+            DatagramPacket thePacket = new DatagramPacket(aBuff, aBuff.length, IP, port);
 
             theSocket.send(thePacket);
-            System.out.println("Sent packet: " + s); // testing
 
             Thread.sleep(500);
         }
-        String endMess = "END";
-        byte[] endArr = endMess.getBytes();
-        thePacket = new DatagramPacket(endArr, endArr.length, IP, port);
-        theSocket.send(thePacket);
-
-        theSocket.close();
     }
+        
 }
