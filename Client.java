@@ -27,7 +27,7 @@ public class Client{ //A, B, PORT
     }
 
     private static void sendPackets(String msgSender, String msgReceiver, int seq, int port, InetAddress IP, DatagramSocket theSocket, Random rnd) throws Exception{
-        for (int i = 0; i<30; ++i){
+        for (int i = 0; i<100; ++i){
             int msgAdditionSize = rnd.nextInt(0,31); //variable packet lengths
             String addOn = "";
             for (int j = 0; j < msgAdditionSize; ++j) {
