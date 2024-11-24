@@ -2,11 +2,9 @@ import java.io.IOException;
 import java.net.*;
 import java.util.*;
 
-public class UnreliableChannel{ //port, probability, minimum delay, maximum delay
-    //take in port
-    //receive packet
-    //random to simulate packet loss and delay (do we keep or not)
-    public static void main (String [] args) throws Exception{
+public class UnreliableChannel { // port, probability, minimum delay, maximum delay
+    public static void main(String[] args) {
+
         // command line input
         int port = 0, minD = 0, maxD = 0;
         double probs = 0.0;
@@ -15,7 +13,7 @@ public class UnreliableChannel{ //port, probability, minimum delay, maximum dela
             probs = Double.parseDouble(args[1]);
             minD = Integer.parseInt(args[2]);
             maxD = Integer.parseInt(args[3]);
-        } catch (NumberFormatException e) { //input ghalat
+        } catch (NumberFormatException e) {
             System.err.println("Invalid input. Ensure that the input is in the following order: PORT (int), loss probability (double), minimum delay, and maximum delay (int)");
             return;
         }
@@ -23,144 +21,106 @@ public class UnreliableChannel{ //port, probability, minimum delay, maximum dela
         // time limit packet losses (a packet is lost every time a period of time passes)
         long lastTimePacketLost = 0; // when was the last packet lost?
         boolean lossPeriod = false; // am i going to lose a packet now or not?
-        long loserInterval = 20; // (ms)
-        long loserDuration = 40; // (ms)
-
-        byte[] anotherBuff = new byte[1024];
+        long loserInterval = 10000; // (ms) (increased)
+        long loserDuration = 5000; // (ms) (increased)
 
         DatagramSocket theSocketII = null;
-
         try {
-            // prepare to receive a packet 
             theSocketII = new DatagramSocket(port);
             System.out.println("Server running on port " + port);
-        } catch (SocketException e) { // something wrong with port 
+        } catch (SocketException e) {
             System.err.println("Socket creation error on the port " + port);
             return;
         }
-        
+
+        byte[] anotherBuff = new byte[1024];
         DatagramPacket thePacketII = new DatagramPacket(anotherBuff, anotherBuff.length);
 
+        // counters 
+        int totalPacketsA = 0, loserA = 0, keeperA = 0, totalDelayA = 0;
+        int totalPacketsB = 0, loserB = 0, keeperB = 0, totalDelayB = 0;
+
+        Random rnd = new Random();
         
-        //counters
-        int totalPacketsA = 0;
-        int totalPacketsB = 0;
-
-        int loserA = 0;
-        int keeperA = 0;
-        int delayA = 0;
-
-        int loserB = 0;
-        int keeperB = 0;
-        int delayB = 0;
-
-        System.out.println("Waiting for packets...");
-        
-        // current time (we're liars)
-        long currentTime = 5;
-
-        try{
-            while(true){
+        try {
+            while (true) {
                 try {
-                    System.out.println("in while loop");
-                    // actually receive the packet and put the data in a string
+                    // Receive packet
                     theSocketII.receive(thePacketII);
+                    String str = new String(thePacketII.getData(), 0, thePacketII.getLength()).trim();
 
-                    String str = new String(thePacketII.getData(), 0, thePacketII.getLength()).trim(); // .trim() for better security
                     if (str.equals("END")) {
-                        break; // all packets sent
+                        break;
                     }
 
                     char user = str.charAt(0);  // which client sent this? A or B?
-                    Random rnd = new Random();
-                    
-                    
-                    currentTime += rnd.nextLong(1, 100);
-                    System.out.println(currentTime);
-                    // 15%
-                    // 
-                    //
-                    // are we within the losing interval?
+                    long currentTime = System.currentTimeMillis();
+
+                    // check if in loss interval
                     if (currentTime - lastTimePacketLost > loserInterval) {
-                        lastTimePacketLost = currentTime; // yes, we exceeded the interval so khalas we start losing again
+                        lastTimePacketLost = currentTime;
                         lossPeriod = true;
                     }
 
-                    if (user == 'A'){ // which client sent this? A or B?
-                        ++totalPacketsA;
-                    }
-                    else{
-                        ++totalPacketsB;
+                    if (lossPeriod && currentTime - lastTimePacketLost <= loserDuration) {
+                        System.out.println("Packet lost within time loss interval.");
+                        if (user == 'A') {
+                            loserA++;
+                            totalPacketsA++;
+                        } else {
+                            loserB++;
+                            totalPacketsB++;
+                        }
+                        continue;
+                    } else {
+                        lossPeriod = false;
                     }
 
-                    
-                    int packetDelay = rnd.nextInt(minD, maxD + 1);
+                    // probability-based packet loss
+                    if (rnd.nextDouble() <= probs) {
+                        if (user == 'A') {
+                            loserA++;
+                            totalPacketsA++;
+                        } else {
+                            loserB++;
+                            totalPacketsB++;
+                        }
+                        continue;
+                    }
 
-                    if (lossPeriod){
-                        if (currentTime - lastTimePacketLost <= loserDuration){ // within the period, lose packet
-                            if (user == 'A'){
-                                System.out.println("time loss A");
-                                loserA++;
-                            }
-                            else{
-                                System.out.println("time loss B");
-                                loserB++;
-                            }
-                            continue; //skip fr
-                        }
-                        else{
-                            lossPeriod = false; // khlosna
-                        }
+                    int packetDelay = rnd.nextInt(maxD - minD + 1) + minD;
+                    Thread.sleep(packetDelay);
+
+                    // packet successfully sent
+                    if (user == 'A') {
+                        keeperA++;
+                        totalPacketsA++;
+                        totalDelayA += packetDelay;
+                    } else {
+                        keeperB++;
+                        totalPacketsB++;
+                        totalDelayB += packetDelay;
                     }
-                    else if (rnd.nextDouble()<=probs){
-                        if (user == 'A'){
-                            System.out.println("nromal loss");
-                            ++loserA;
-                        }
-                        else{
-                            System.out.println("normal loss");
-                            ++loserB;
-                        }
-                        continue; //packet lost, skip to next one
-                    }
-                    else {
-                        Thread.sleep(packetDelay); //delay sim
-                        //packet is sent successfully 
-                        if (user == 'A'){
-                            ++keeperA;
-                            String s = new String(thePacketII.getData());
-                            System.out.println("Message received from A to B: " + s);
-                            delayA += packetDelay;
-                        }
-                        else{
-                            ++keeperB;
-                            String s = new String(thePacketII.getData());
-                            System.out.println("Message received from B to A: " + s);
-                            delayB += packetDelay;
-                        } 
-                    }
-                } catch(IOException e){
+                } catch (IOException e) {
                     System.err.println("Error receiving packet: " + e.getMessage());
                 }
-
             }
         } catch (InterruptedException e) {
             System.err.println("Thread interruption during sleep: " + e.getMessage());
             Thread.currentThread().interrupt();
         } finally {
-            double averageDelayA = 0, averageDelayB = 0;
-            if (keeperA > 0)
-                averageDelayA = delayA / keeperA;
-            if (keeperB > 0)
-                averageDelayB = delayB / keeperB;
-            
-            System.out.println("Packets delivered from user A: " + totalPacketsA + " | Lost: " + loserA + " | Delayed: " + keeperA);
-            System.out.println("Packets delivered from user B: " + totalPacketsB + " | Lost: " + loserB + " | Delayed: " + keeperB);
-            System.out.println("Average delay from A to B: " + averageDelayA + " ms");
-            System.out.println("Average delay from B to A: " + averageDelayB + " ms");
+            // Average delays
+            double avgDelayA = keeperA > 0 ? (double) totalDelayA / keeperA : 0;
+            double avgDelayB = keeperB > 0 ? (double) totalDelayB / keeperB : 0;
+
+            // Print results
+            System.out.println("Packets received from user A: " + totalPacketsA + " | Lost: " + loserA + " | Delivered: " + keeperA);
+            System.out.println("Packets received from user B: " + totalPacketsB + " | Lost: " + loserB + " | Delivered: " + keeperB);
+            System.out.println("Average delay from A to B: " + avgDelayA + " ms");
+            System.out.println("Average delay from B to A: " + avgDelayB + " ms");
 
             if (theSocketII != null && !theSocketII.isClosed()) {
-                theSocketII.close(); // close the socket for sure 
+                theSocketII.close();
             }
         }
     }
