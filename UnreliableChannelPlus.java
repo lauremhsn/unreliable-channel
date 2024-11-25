@@ -2,7 +2,7 @@ import java.io.IOException;
 import java.net.*;
 import java.util.*;
 
-public class UnreliableChannelPlus{ //port, probability
+public class UnreliableChannelPlus{ //port, probability, weight
     //take in port
     //receive packet
     //random to simulate packet loss and delay (do we keep or not)
@@ -10,11 +10,22 @@ public class UnreliableChannelPlus{ //port, probability
         // command line input
         int port = 0;
         double probs = 0.0;
+        double weight = 0.0;
         try {
             port = Integer.parseInt(args[0]);
             probs = Double.parseDouble(args[1]);
+            weight = Double.parseDouble(args[2]);
         } catch (NumberFormatException e) { //wrong input
             System.err.println("Invalid input. Ensure that the input is in the following order: PORT (int), loss probability (double)");
+            return;
+        }
+
+        if (probs < 0 || probs >= 1){
+            System.err.println("Probabilistic loss rate factor should be between 0 and 1");
+            return;
+        }
+        if (weight < 0 || weight > 1){
+            System.err.println("Balance control between delay distributions should be between 0 and 1");
             return;
         }
 
@@ -86,21 +97,26 @@ public class UnreliableChannelPlus{ //port, probability
                     }
 
                     //preparation for log-normal delay disrtribution 
-                    double mu = 4; //log delay mean
-                    double sigma = 1.3; //standard deviation
+                    double mu_ln = 4; //log-normal mean
+                    double sigma_ln = 1.3; //log-normal standard deviation
                     // 4 and 1.3 makes most values reside within 14.9 ms and 200 ms
+                    //this is elaborated upon within the report
+                    double logNormalDelay = mu_ln + sigma_ln * (rnd.nextGaussian());
 
-                    int packetDelay = (int)Math.max(0, Math.exp(mu+sigma*(rnd.nextGaussian())));
+                    //preparation for Gaussian delay distribution
+                    double mu_gs = 110; //Gaussian mean
+                    double sigma_gs = 40; //Gaussian standard deviation
+                    // 50 and 20 makes most values lie between 30 and 190 ms
+                    double gaussianDelay = mu_gs + sigma_gs * (rnd.nextGaussian());
+
+                    int packetDelay = (int) Math.max(0, weight * logNormalDelay + (1 - weight) * gaussianDelay);
 
                         
                     if (lossPeriod && currentTime - lastTimePacketLost < loserDuration){
-                        System.out.println("Packet lost within time loss interval.");
                         if (user == 'A'){
-                            System.out.println("time loss A");
                             loserA++;
                         }
                         else{
-                            System.out.println("time loss B");
                             loserB++;
                         }
                         continue; //skip fr
@@ -108,11 +124,9 @@ public class UnreliableChannelPlus{ //port, probability
                     else if (rnd.nextDouble()<=probs){
                         lossPeriod = false;
                         if (user == 'A'){
-                            System.out.println("nromal loss");
                             ++loserA;
                         }
                         else{
-                            System.out.println("normal loss");
                             ++loserB;
                         }
                         continue; //packet lost, skip to next one
