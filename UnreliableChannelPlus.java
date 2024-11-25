@@ -106,7 +106,7 @@ public class UnreliableChannelPlus{ //port, probability, weight
                     //preparation for Gaussian delay distribution
                     double mu_gs = 110; //Gaussian mean
                     double sigma_gs = 40; //Gaussian standard deviation
-                    // 50 and 20 makes most values lie between 30 and 190 ms
+                    // 110 and 40 makes most values lie between 30 and 190 ms
                     double gaussianDelay = mu_gs + sigma_gs * (rnd.nextGaussian());
 
                     int packetDelay = (int) Math.max(0, weight * logNormalDelay + (1 - weight) * gaussianDelay);
