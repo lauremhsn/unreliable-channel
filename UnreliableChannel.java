@@ -15,6 +15,11 @@ public class UnreliableChannel {//PORT PROB MIND MAXD, EX: 9999 0.3 0 200
         minD = Integer.parseInt(args[2]);
         maxD = Integer.parseInt(args[3]);
 
+        if (probs < 0 || probs >= 1){
+            System.err.println("Probabilistic loss rate factor should be between 0 and 1");
+            return;
+        }
+
         byte[] anotherBuff = new byte[1024];
 
         DatagramSocket theSocketII = null;
