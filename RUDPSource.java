@@ -36,6 +36,7 @@ public class RUDPSource{
         int bufferSize = 1024;
         //Every packet a max of 1024 bytes
         int packetNum = (int) Math.ceil((double) fileBytes.length/bufferSize);
+        System.out.println("Number of Packets: " + packetNum);
 
         byte[] buff = new byte[bufferSize];
         DatagramSocket theSocket = new DatagramSocket(); 
@@ -48,9 +49,11 @@ public class RUDPSource{
         DatagramPacket filenamePacket = new DatagramPacket(filename.getBytes(), filename.length(), ipAddress, recvPort);
         theSocket.send(filenamePacket);
 
+        int start = 0;
+
         for (int i = 0; i<packetNum; i++){
-            System.out.println("in for-loop");
-            int start = i*bufferSize;
+            start = i*bufferSize;
+            System.out.println("File Bytes: " + fileBytes.length);
             System.out.println("Start: " + start);
             int length = Math.min(1024, fileBytes.length-start); //just to double check last packet
             System.out.println("Length: " + length);
@@ -70,16 +73,15 @@ public class RUDPSource{
             boolean ack = false;
          
             while (!ack){
-                System.out.println("in ack-loop");
                 try{
                     byte[] buffII = new byte[16];
                     DatagramPacket thPacketII = new DatagramPacket(buffII, buffII.length);
                     theSocket.receive(thPacketII);
                     String ackStatus = new String(thPacketII.getData(), 0, thPacketII.getLength());
-                    System.out.println("ACKNOWLEDGING: " + ackStatus + "/" + packetNum + " PACKETS");
-                    if (ackStatus.equals(""+start)){
+
+                    if (ackStatus.equals(""+(start))){
                         ack = true;
-                        System.out.println("[ACK CONFIRMED]: " + start);
+                        System.out.println("[ACK CONFIRMED]: " + (start+1));
                     }  
                     //else{
                     //    System.out.println("idk saraha");
