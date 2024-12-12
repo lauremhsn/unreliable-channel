@@ -25,10 +25,33 @@ public class RUDPDestination{ //java RUDPDestination -p <recvPort>
 
         boolean fileName = false; //to check if we received file name
 
+        while (!fileName){
+            theSocketII.receive(thePacketIII);
+            String packetStuff = new String(thePacketIII.getData(), 0, thePacketIII.getLength());
+            file = new File(directory, packetStuff);
+            try{
+                fileOutputStream = new FileOutputStream(file);
+                System.out.println("RECEIVING FILE: " + file.getName());
+            }
+            catch (FileNotFoundException e){
+                System.err.println("File creation failed: " + e.getMessage());
+                break;
+            }
+            fileName = true;
+
+            int ackStatus = 1;
+            byte[] ack = new byte[0];
+            DatagramPacket ackPacket = new DatagramPacket(ack, ack.length, thePacketIII.getAddress(), thePacketIII.getPort());
+            theSocketII.send(ackPacket);
+            System.out.println("ACKNOWLEDGMENT FOR FILENAME SENT");
+
+        }
+
+        int count = 0;
+            
         while(true){
             Random random = new Random();
             theSocketII.receive(thePacketIII);
-            System.out.println("[DATA RECEIVED]: Packet received - Length: " + thePacketIII.getLength());
 
             if (thePacketIII.getLength() == 0){
                 System.out.println("END PACKET");
@@ -39,21 +62,6 @@ public class RUDPDestination{ //java RUDPDestination -p <recvPort>
                 System.out.println("[DATA RECEPTION]: " + thePacketIII.getOffset() + " | " + thePacketIII.getLength() + " | DISCARDED");
                 continue; //lose the packet - oops
             }
-
-            String packetStuff = new String(thePacketIII.getData(), 0, thePacketIII.getLength());
-            
-            if (!fileName){
-                System.out.println("Received filename: " + packetStuff);
-                file = new File(directory, packetStuff);
-                try{
-                    fileOutputStream = new FileOutputStream(file);
-                    System.out.println("RECEIVING FILE: " + file.getName());
-                }
-                catch (FileNotFoundException e){
-                    System.err.println("File creation failed: " + e.getMessage());
-                    break;
-                }
-            }
             else{
                 fileOutputStream.write(thePacketIII.getData(), 0, thePacketIII.getLength());
                 System.out.println("[DATA RECEPTION]: " + thePacketIII.getOffset() + " | " + thePacketIII.getLength() + " | OK");
@@ -63,9 +71,10 @@ public class RUDPDestination{ //java RUDPDestination -p <recvPort>
             byte[] ack = ackStatus.getBytes();
             DatagramPacket thePacketIV = new DatagramPacket(ack, ack.length, thePacketIII.getAddress(), thePacketIII.getPort());
             theSocketII.send(thePacketIV);
-            System.out.println("SENDING ACKNOWLEDGMENT " + ackStatus);
+            count++;
+            System.out.println("SENDING ACKNOWLEDGMENT " + count);
 
-            if (thePacketIII.getLength()<1024) {
+            if (thePacketIII.getLength()<1024){
                 break;//this is the last packet
             }
         }
