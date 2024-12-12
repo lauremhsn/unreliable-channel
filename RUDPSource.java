@@ -1,41 +1,41 @@
 //a reliable source node (i.e. a sending node) program 
-import java.util.*;
 import java.net.*;
 import java.io.*;
 
 public class RUDPSource{
     public static void main (String [] args) throws Exception{
         //arg[0] - String "-r"
-        //arg[1] - String recvHost:
-        //arg[2] - int recvPort
-        //arg[3] - String "-f"
-        //arg[4] - String filename
-
-        for (int i = 0; i<= args.length; i++){
-            if (args[0] == "-r"){
-                //split
-                //get recvHost
-                //get recvPort
-            }
-            if (args[0] == "-f"){
-                //get filename
-            }
-        }
+        //arg[1] - String recvHost:int recvPort
+        //arg[2] - String "-f" 
+        //arg[3] - String filename
 
         String recvHost = "";
         int recvPort = 0;
         String filename = "";
-        File file = new File("filename.txt");
+
+        for (int i = 0; i<args.length; i++){
+            if ("-r".equals(args[i])){
+                String[] recvInfo = args[i + 1].split(":");//split
+                recvHost = recvInfo[0];//get recvHost
+                recvPort = Integer.parseInt(recvInfo[1]);//get recvPort
+            }
+            if ("-f".equals(args[i])){
+                filename = args[i + 1];//get filename
+            }
+        }
+        
+        File file = new File(filename);
+        if (!file.exists()) {
+            System.out.println("File does not exist in current directory.");
+            return;
+        }
         byte[] fileBytes = new byte[(int) file.length()];
         FileInputStream fileInputStream = new FileInputStream(file);
         fileInputStream.read(fileBytes);
         
         int bufferSize = 1024;
         //Every packet a max of 1024 bytes
-        int packetNum = (int) Math.ceil(fileBytes.length/bufferSize);
-        if (fileBytes.length<1024){
-            //something
-        }
+        int packetNum = (int) Math.ceil((double) fileBytes.length/bufferSize);
 
         byte[] buff = new byte[bufferSize];
         DatagramSocket theSocket = new DatagramSocket(); 
@@ -44,45 +44,62 @@ public class RUDPSource{
         int timeOut = 2500;
         theSocket.setSoTimeout(timeOut);
 
-        for (int i = 0; i<packetNum; i++){
-            int start = i*bufferSize;
-            int length = Math.min(1024, fileBytes.length-start); //just to double check last packet
-            //fill out buff
-            //for (int j = 0; j<=buffLength; j++){
-            //    buff[j] = fileBytes[i];
-            //}
-            fileInputStream.read(buff);
+        System.out.println("Sending filename: " + filename);
+        DatagramPacket filenamePacket = new DatagramPacket(filename.getBytes(), filename.length(), ipAddress, recvPort);
+        theSocket.send(filenamePacket);
 
-            DatagramPacket thePacket = new DatagramPacket(buff, buff.length, ipAddress, recvPort);
+        for (int i = 0; i<packetNum; i++){
+            System.out.println("in for-loop");
+            int start = i*bufferSize;
+            System.out.println("Start: " + start);
+            int length = Math.min(1024, fileBytes.length-start); //just to double check last packet
+            System.out.println("Length: " + length);
+            //fill out buff
+            for (int j = 0; j<length; j++){
+                buff[j] = fileBytes[start + j];
+            }
+            if (length == 0) {
+                break; //no more stuff to read
+            }
+
+            DatagramPacket thePacket = new DatagramPacket(buff, length, ipAddress, recvPort);
             theSocket.send(thePacket);
             System.out.println("[DATA TRANSMISSION]: " + start + " | " + length);
 
             //acknowledgments 
             boolean ack = false;
-            byte[] buffII = new byte[256];
-            DatagramPacket thPacketII = new DatagramPacket(buffII, buffII.length); 
+         
             while (!ack){
+                System.out.println("in ack-loop");
                 try{
+                    byte[] buffII = new byte[16];
+                    DatagramPacket thPacketII = new DatagramPacket(buffII, buffII.length);
                     theSocket.receive(thPacketII);
                     String ackStatus = new String(thPacketII.getData(), 0, thPacketII.getLength());
-                /*    if (ackStatus.equals("smth")){
+                    System.out.println("ACKNOWLEDGING: " + ackStatus + "/" + packetNum + " PACKETS");
+                    if (ackStatus.equals(""+start)){
                         ack = true;
-                        //OK, DISCARDED
-                    System.out.println("Acknowledgement Received: " + ackStatus);
-                    }
-                */    
+                        System.out.println("[ACK CONFIRMED]: " + start);
+                    }  
+                    //else{
+                    //    System.out.println("idk saraha");
+                    //}
                 }
                 catch (SocketTimeoutException e){
                     System.err.println("[DATA RE-TRANSMISSION]: " + start + " | " + length);
                     theSocket.send(thePacket);
-                    
                 }
             }
 
             
         }
+        byte[] endSignal = new byte[0];
+        DatagramPacket endPacket = new DatagramPacket(endSignal, endSignal.length, ipAddress, recvPort);
+        theSocket.send(endPacket);
 
+        System.out.println("[COMPLETE]");
         fileInputStream.close();
+        theSocket.close();
     }
 
 }
