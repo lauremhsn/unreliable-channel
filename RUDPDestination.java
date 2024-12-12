@@ -1,88 +1,80 @@
+
 import java.net.*;
 import java.io.*;
 import java.util.*;
 
-public class RUDPDestination{ //java RUDPDestination -p <recvPort>
-    public static void main(String[] args) throws Exception{
+public class RUDPDestination {
+    public static void main(String[] args) throws Exception {
         int recvPort = 0;
-        for (int i = 0; i<args.length; i++){
-            if (args[i].equals("-p")){
-                recvPort = Integer.parseInt(args[i+1]);
+
+        // parse command-line args
+        for (int i = 0; i < args.length; i++) {
+            if (args[i].equals("-p")) {
+                recvPort = Integer.parseInt(args[i + 1]);
             }
         }
+
         DatagramSocket theSocketII = new DatagramSocket(recvPort);
-        byte[] buff = new byte[1024];
-        DatagramPacket thePacketIII = new DatagramPacket(buff, buff.length);
+        byte[] buffer = new byte[1028]; // offset + buffer size (1024)
+        DatagramPacket thePacketIII = new DatagramPacket(buffer, buffer.length);
 
         FileOutputStream fileOutputStream = null;
         File file = null;
-        
-        double packetLost = 0.3; //30% chance of packet loss simulation
+
+        double packetLossRate = 0.3; // 30% loss probability fr
         File directory = new File("filesReceived");
         if (!directory.exists()) {
-            directory.mkdirs(); //create if it doesnt exist
+            directory.mkdirs();
         }
 
-        boolean fileName = false; //to check if we received file name
+        boolean fileNameReceived = false;
 
-        while (!fileName){
+        while (!fileNameReceived) {
             theSocketII.receive(thePacketIII);
-            String packetStuff = new String(thePacketIII.getData(), 0, thePacketIII.getLength());
-            file = new File(directory, packetStuff);
-            try{
-                fileOutputStream = new FileOutputStream(file);
-                System.out.println("RECEIVING FILE: " + file.getName());
-            }
-            catch (FileNotFoundException e){
-                System.err.println("File creation failed: " + e.getMessage());
-                break;
-            }
-            fileName = true;
+            String fileName = new String(thePacketIII.getData(), 0, thePacketIII.getLength());
+            file = new File(directory, fileName);
 
-            int ackStatus = 1;
-            byte[] ack = new byte[0];
+            fileOutputStream = new FileOutputStream(file);
+            System.out.println("RECEIVING FILE: " + file.getName());
+
+            byte[] ack = fileName.getBytes();
             DatagramPacket ackPacket = new DatagramPacket(ack, ack.length, thePacketIII.getAddress(), thePacketIII.getPort());
             theSocketII.send(ackPacket);
             System.out.println("ACKNOWLEDGMENT FOR FILENAME SENT");
 
+            fileNameReceived = true;
         }
 
-        int count = 0;
-            
-        while(true){
+        while (true) {
             Random random = new Random();
             theSocketII.receive(thePacketIII);
 
-            if (thePacketIII.getLength() == 0){
+            if (thePacketIII.getLength() == 0) { // the end moment
                 System.out.println("END PACKET");
-                break;//this is endPacket
+                break;
             }
 
-            if (random.nextDouble()<packetLost){
-                System.out.println("[DATA RECEPTION]: " + thePacketIII.getOffset() + " | " + thePacketIII.getLength() + " | DISCARDED");
-                continue; //lose the packet - oops
-            }
-            else{
-                fileOutputStream.write(thePacketIII.getData(), 0, thePacketIII.getLength());
-                System.out.println("[DATA RECEPTION]: " + thePacketIII.getOffset() + " | " + thePacketIII.getLength() + " | OK");
+            // extract offset
+            byte[] data = thePacketIII.getData();
+            int offset = ((data[0] & 0xFF) << 24) | ((data[1] & 0xFF) << 16) | ((data[2] & 0xFF) << 8) | (data[3] & 0xFF);
+
+            if (random.nextDouble() < packetLossRate) {
+                System.out.println("[DATA RECEPTION]: " + offset + " | " + (thePacketIII.getLength() - 4) + " | DISCARDED");
+                continue; // simulate packet loss
             }
 
-            String ackStatus = "" + thePacketIII.getOffset();
-            byte[] ack = ackStatus.getBytes();
-            DatagramPacket thePacketIV = new DatagramPacket(ack, ack.length, thePacketIII.getAddress(), thePacketIII.getPort());
-            theSocketII.send(thePacketIV);
-            count++;
-            System.out.println("SENDING ACKNOWLEDGMENT " + count);
+            fileOutputStream.write(data, 4, thePacketIII.getLength() - 4);
+            System.out.println("[DATA RECEPTION]: " + offset + " | " + (thePacketIII.getLength() - 4) + " | OK");
 
-            if (thePacketIII.getLength()<1024){
-                break;//this is the last packet
-            }
+            byte[] ack = String.valueOf(offset).getBytes();
+            DatagramPacket ackPacket = new DatagramPacket(ack, ack.length, thePacketIII.getAddress(), thePacketIII.getPort());
+            theSocketII.send(ackPacket);
         }
+
         if (fileOutputStream != null) {
             fileOutputStream.close();
         }
         theSocketII.close();
-
         System.out.println("[COMPLETE]");
     }
 }
